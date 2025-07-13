@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Latest News from Prothom Alo</title>
+
+		<style>
+			/* --- Existing Styles --- */
+			body {
+				font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+				line-height: 1.6;
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 20px;
+				color: #333;
+				background-color: #f5f5f5;
+			}
+			h1 {
+				color: #d9230f;
+				text-align: center;
+				margin-bottom: 5px;
+			}
+			.news-grid-container {
+				/* Renamed from news-container for clarity */
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+				gap: 20px;
+				margin-bottom: 30px;
+			}
+
+			.news-card {
+				background: white;
+				border-radius: 8px;
+				overflow: hidden;
+				box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+				transition: transform 0.3s ease, background-color 0.3s ease, opacity 0.3s ease;
+				display: block;
+				cursor: pointer;
+			}
+			.news-card:hover {
+				transform: translateY(-5px);
+			}
+			.news-card.read {
+				opacity: 0.7; /* Slightly more faded when read */
+				background-color: #f0f0f0; /* Lighter grey */
+				position: relative;
+			}
+			.news-card.read::after {
+				content: "✓ Read";
+				position: absolute;
+				top: 10px;
+				right: 10px;
+				background-color: #5a9a5a; /* Softer green */
+				color: white;
+				padding: 3px 8px;
+				border-radius: 4px;
+				font-size: 12px;
+				z-index: 1;
+			}
+			.card-image {
+				width: 100%;
+				height: 200px;
+				object-fit: cover;
+				pointer-events: none;
+			}
+			.card-content {
+				padding: 10px 15px; /* Slightly more padding */
+			}
+			.card-title {
+				margin-top: 0px;
+				font-size: 18px;
+				font-weight: bold;
+				margin-bottom: 10px;
+				color: #222;
+				/* Prevent long titles from breaking layout badly */
+				display: -webkit-box;
+				-webkit-line-clamp: 2; /* Limit to 2 lines */
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				min-height: 2.4em; /* Ensure space for 2 lines */
+			}
+			.card-description {
+				font-size: 14px;
+				color: #555;
+				margin-bottom: 10px;
+				display: -webkit-box;
+				-webkit-line-clamp: 3;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+				min-height: 4.2em; /* Ensure space for 3 lines */
+			}
+			.card-meta {
+				font-size: 12px;
+				padding: 0 15px 10px; /* Align with card-content padding */
+				color: #777;
+				display: flex;
+				justify-content: space-between;
+				align-items: center; /* Vertically align meta items */
+			}
+			.card-category {
+				display: inline-block;
+				background-color: #e9ecef; /* Lighter category bg */
+				color: #495057; /* Darker category text */
+				padding: 3px 8px;
+				border-radius: 4px;
+				font-size: 0.75rem;
+				margin-right: 5px;
+				position: relative;
+				z-index: 2;
+				white-space: nowrap; /* Prevent wrapping */
+			}
+
+			.article-modal {
+				display: none;
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: rgba(0, 0, 0, 0.85); /* Slightly darker overlay */
+				z-index: 1000; /* Below modal content */
+				overflow-y: auto;
+				padding: 20px; /* Padding for scrollbar */
+			}
+			.modal-content {
+				max-width: 800px;
+				margin: 40px auto;
+				background: white;
+				border-radius: 8px;
+				overflow: visible; /* Keep this */
+				position: relative;
+				box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+				z-index: 1001;
+
+				/* --- ADD TRANSITION HERE --- */
+				transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+				/* Default state (visible, centered) - can be handled by JS if needed, but good default */
+				transform: translateX(0%);
+				opacity: 1;
+			}
+			.modal-header {
+				padding: 15px 20px; /* Adjust padding */
+				background: #d9230f;
+				color: white;
+				position: relative;
+				border-top-left-radius: 8px; /* Match content radius */
+				border-top-right-radius: 8px;
+			}
+			.modal-title {
+				font-size: 22px; /* Slightly smaller title */
+				margin: 0;
+				margin-right: 40px; /* Space for close button */
+			}
+
+			.close-modal {
+				font-weight: bold;
+				font-size: 4rem;
+				text-align: center;
+				line-height: 0.5;
+				background: #000000;
+				position: absolute;
+				top: 0%;
+				transform: translateY(-60%);
+				right: -15px;
+				width: 50px;
+				height: 50px;
+				background-color: rgb(221 132 132 / 66%);
+				border-radius: 50%;
+				cursor: pointer;
+			}
+
+			.close-modal:hover {
+				color: white;
+				background-color: rgb(196, 70, 70);
+			}
+
+			.modal-body {
+				padding: 0px; /* Remove padding here, add to inner content */
+				overflow: hidden; /* Crucial for clipping sliding animation */
+				border-bottom-left-radius: 8px; /* Match content radius */
+				border-bottom-right-radius: 8px;
+				position: relative; /* Needed for absolute positioning context if required, but transform works fine */
+				background-color: white; /* Ensure bg color */
+			}
+			#modal-scroll-content {
+				/* Inner wrapper for content and padding */
+				padding: 20px;
+				/* --- REMOVE TRANSITION FROM HERE --- */
+				/* transition: transform 0.4s ease-in-out, opacity 0.4s ease-in-out; */ /* REMOVED */
+				background-color: white; /* Ensure background during transition */
+				border-bottom-left-radius: 8px; /* Match content radius */
+				border-bottom-right-radius: 8px;
+				/* Make sure transform/opacity defaults don't interfere */
+				transform: none;
+				opacity: 1;
+			}
+			.modal-image {
+				width: 100%;
+				max-height: 400px;
+				min-height: 400px;
+				object-fit: cover;
+				margin-bottom: 15px; /* Adjust spacing */
+				border-radius: 4px;
+				/* background-image: url("https://placeholder.pics/svg/100x100"); */
+				background-image: url("data:image/svg+xml,%3Csvg xmlns%3D%22http%3A//www.w3.org/2000/svg%22 viewBox%3D%220 0 100 100%22%3E%3Crect width%3D%22100%25%22 height%3D%22100%25%22 fill%3D%22%23e0e0e0%22/%3E%3Ctext x%3D%2250%25%22 y%3D%2250%25%22 dominant-baseline%3D%22middle%22 text-anchor%3D%22middle%22 fill%3D%22%23777777%22 font-size%3D%2210%22%3E%3C/text%3E%3C/svg%3E");
+			}
+			.modal-image-caption {
+				margin-top: -10px;
+				margin-bottom: 15px;
+				text-align: center;
+				font-style: italic;
+				font-size: 1em;
+				color: #666;
+			}
+			.modal-text {
+				font-size: 16px;
+				line-height: 1.8;
+				margin-bottom: 1em; /* Spacing between paragraphs */
+			}
+			.loading {
+				text-align: center;
+				padding: 40px;
+				font-size: 18px;
+				color: #666;
+			}
+			.error {
+				color: #d9230f;
+				padding: 20px;
+				background-color: #fde8e8;
+				border-radius: 4px;
+				text-align: center;
+				margin: 20px 0;
+			}
+
+			.filter-controls {
+				/* Wrapper for filters and clear button */
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 10px;
+				margin-bottom: 25px;
+			}
+			.filter-container {
+				display: flex;
+				/* justify-content: center; remove this, parent handles centering */
+				/* margin-bottom: 20px; remove this, parent handles margin */
+				flex-wrap: wrap;
+				gap: 10px;
+			}
+			.subheader {
+				display: flex;
+				justify-content: center; /* Center the date */
+				align-items: center; /* Vertically align items */
+				gap: 10px; /* Space between items */
+				position: relative;
+				padding: 10px;
+				flex-wrap: wrap; /* Allow wrapping on small screens */
+			}
+
+			#current-date {
+				flex: 1 1 auto; /* Allow the date to take available space */
+				text-align: center; /* Center text within the date container */
+				margin: 5px 0;
+			}
+
+			#clear-read-btn {
+				margin-left: auto; /* Push the button to the right */
+				padding: 8px 16px;
+				border: 1px solid #ced4da;
+				background: #7191ff;
+				color: #000000;
+				border-radius: 20px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+				font-size: 0.9em;
+			}
+
+			div > blockquote {
+				border-left: 4px solid red;
+				padding-left: 10px;
+				margin: 20px 0 0px 0;
+				font-size: 18px;
+				font-weight: 500;
+				color: #000;
+				line-height: 1.6;
+			}
+
+			div > blockquote + span {
+				margin-top: 0px;
+				border-left: 4px solid red;
+				display: block;
+				font-size: 14px;
+				color: #666;
+				font-weight: 400;
+				padding-left: 10px;
+			}
+
+			/* Media query for small screens */
+			@media (max-width: 480px) {
+				.subheader {
+					flex-direction: column; /* Stack items vertically */
+					align-items: center;
+				}
+
+				#clear-read-btn {
+					margin-left: 0;
+					margin-top: 5px;
+				}
+				.close-modal {
+					font-weight: bold;
+					font-size: 4rem;
+					text-align: center;
+					/*line-height: 0.5;*/
+					background: #000000;
+					position: absolute;
+					top: 0%;
+					transform: translateY(-60%);
+					right: -15px;
+					width: 50px;
+					height: 50px;
+					background-color: rgb(221 132 132 / 66%);
+					border-radius: 50%;
+					cursor: pointer;
+				}
+			}
+
+			#clear-read-btn:hover {
+				background-color: #e9ecef;
+				border-color: #adb5bd;
+			}
+
+			.filter-btn {
+				padding: 8px 16px;
+				border: 1px solid #ddd;
+				background-color: white;
+				border-radius: 20px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+			}
+			.filter-btn:hover {
+				background-color: #f0f0f0;
+			}
+			.filter-btn.active {
+				background-color: #d9230f;
+				color: white;
+				border-color: #d9230f;
+			}
+			.loading-more,
+			.no-more-articles {
+				text-align: center;
+				padding: 20px;
+				color: #666;
+				display: none;
+				clear: both; /* Ensure it appears below grid */
+			}
+
+			.modal-actions {
+				margin-top: 8px; /* Space above TTS buttons */
+				display: block;
+			}
+
+			#copyNewsText,
+			#tts-play,
+			#tts-stop {
+				background: rgba(255, 255, 255, 0.2);
+				border: 1px solid white;
+				color: white;
+				border-radius: 4px;
+				padding: 5px 10px;
+				cursor: pointer;
+				font-size: 14px;
+				margin-right: 5px; /* Space between TTS buttons */
+			}
+
+			#tts-play:hover,
+			#tts-stop:hover {
+				background: rgba(255, 255, 255, 0.4); /* Lighter hover */
+			}
+			#tts-status {
+				margin-left: 10px;
+				font-size: 14px;
+				opacity: 0.8;
+			}
+
+			/* --- Styles for Page Navigation Buttons --- */
+			.page-nav-button {
+				position: fixed; /* Fixed to viewport */
+				top: 50%;
+				transform: translateY(-50%);
+				background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent */
+				color: white;
+				border: none;
+				font-size: 2.5rem; /* Larger icon */
+				font-weight: bold;
+				cursor: pointer;
+				z-index: 1002; /* Above modal overlay, below potential highest elements */
+				border-radius: 50%;
+				width: 50px; /* Button size */
+				height: 50px;
+				line-height: 48px; /* Adjust for vertical centering of icon */
+				text-align: center;
+				opacity: 0.7;
+				transition: opacity 0.3s ease, background-color 0.3s ease;
+				display: none; /* Initially hidden, shown via JS */
+				user-select: none; /* Prevent text selection */
+				padding: 0; /* Remove default padding */
+			}
+			.page-nav-button:hover {
+				opacity: 1;
+				background-color: rgba(0, 0, 0, 0.7);
+			}
+			#page-prev-article {
+				left: 15px; /* Distance from left edge */
+			}
+			#page-next-article {
+				right: 15px; /* Distance from right edge */
+			}
+			.page-nav-button:disabled {
+				opacity: 0.2; /* More faded when disabled */
+				cursor: default;
+				background-color: rgba(0, 0, 0, 0.4); /* Keep consistent bg */
+			}
+
+			.bottom-container {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+			}
+
+			#CloseBtn {
+				padding: 10px;
+				border-radius: 5px;
+				background: red;
+				width: 5rem;
+				color: white;
+				font-weight: bold;
+				text-align: center;
+				text-transform: uppercase;
+				cursor: pointer;
+			}
+			#CloseBtn:hover {
+				background: rgb(104, 0, 0);
+			}
+
+			.news-category {
+				font-size: 1rem;
+				color: #ffffff;
+				font-weight: bold;
+				font-style: italic;
+				text-decoration: underline;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Latest News from Prothom Alo</h1>
+		<div class="subheader">
+			<div class="date" id="current-date"></div>
+			<button id="clear-read-btn">Clear Read Status</button>
+		</div>
+
+		<hr />
+		<div class="filter-controls">
+			<div id="filter-container" class="filter-container"></div>
+
+			<!-- Clear Read Button -->
+		</div>
+
+		<div id="news-feed-container">
+			<!-- Wrapper for grid + loading indicators -->
+			<div id="news-grid-container" class="news-grid-container">
+				<div class="loading">Loading latest news...</div>
+			</div>
+			<div id="loading-more" class="loading-more">Loading more articles...</div>
+			<div id="no-more-articles" class="no-more-articles">No more articles to load</div>
+		</div>
+
+		<div id="article-modal" class="article-modal">
+			<div class="modal-content">
+				<div class="modal-header">
+					<span id="news-category" class="news-category"></span>
+					<h2 class="modal-title" id="modal-title"></h2>
+					<div class="modal-actions">
+						<button style="float: right" id="copyNewsText" onclick="copyNewsText()" title="Copy News">⎘ Copy This Article</button>
+						<button id="tts-play" title="Read aloud">🔊 Play</button>
+						<button id="tts-stop" title="Stop reading" style="display: none">⏹ Stop</button>
+						<span id="tts-status"></span>
+					</div>
+					<div onclick="closeModal()" class="close-modal">×<!-- <span class="close-modal" onclick="closeModal()">×</span> --></div>
+				</div>
+				<!-- Modal Body: Clips the animation -->
+				<div class="modal-body" id="modal-body">
+					<!-- Modal Scroll Content: The element that animates -->
+					<div id="modal-scroll-content">
+						<!-- Dynamic content goes here -->
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Page Navigation Buttons (Moved outside modal) -->
+		<button class="page-nav-button" id="page-prev-article" title="Previous Article" aria-label="Previous Article"><</button>
+		<button class="page-nav-button" id="page-next-article" title="Next Article" aria-label="Next Article">></button>
+
+		<script>
+			const ProthomAloLogoURL = "https://media.prothomalo.com/prothomalo/import/default/2016/03/15/4d3620a7127d4a031a05a962fcc4b253-palo-logo.jpg";
+			// Removed unused ttsEnabled variable
+			let ttsUtterance = null;
+
+			let allArticles = [];
+			let filteredArticles = [];
+			let displayedArticleCount = 0;
+			const initialLoadCount = 20;
+			const loadMoreCount = 10;
+			let currentCategory = "all";
+			let categories = [];
+			let readArticles = JSON.parse(localStorage.getItem("readArticles")) || [];
+			let isLoading = false;
+			let isAnimating = false; // Flag to prevent overlapping animations/clicks
+			let currentModalIndex = -1;
+			const animationDuration = 200; // MUST match CSS transition duration in milliseconds
+
+			let availableVoices = [];
+			let ttsInitializationAttempted = false; // Flag to prevent repeated initial calls
+
+			// References to page navigation buttons (declared globally for easier access)
+			let pagePrevBtn = null;
+			let pageNextBtn = null;
+
+			// --- Utility Functions ---
+			function escapeHtml(unsafe) {
+				// console.log("html:" + unsafe); // Be careful logging large HTML strings
+				/* Basic escaping - consider a more robust library if needed */
+				/*
+                if (!unsafe) return "";
+				return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """).replace(/'/g, "'");
+                */
+				// Current implementation doesn't seem to need aggressive escaping for the used fields
+				return unsafe;
+			}
+
+			const formatDate = (timestamp) => {
+				if (!timestamp) return "";
+				try {
+					return new Date(timestamp).toLocaleDateString("en-US", {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+						hour: "2-digit",
+						minute: "2-digit",
+						hour12: true,
+					});
+				} catch (e) {
+					console.error("Error formatting date:", e);
+					return "";
+				}
+			};
+
+			const getCategoryFromUrl = (url) => {
+				if (!url) return "";
+				const urlParts = url.split("/");
+				if (urlParts.length > 3) {
+					// Handle potential empty category names after splitting
+					const categoryPart = urlParts[3];
+					if (!categoryPart) return "General"; // Assign a default if empty
+					return categoryPart.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+				}
+				return "General"; // Assign a default if no category found
+			};
+
+			// --- Core Application Logic ---
+
+			function displayCurrentDate() {
+				const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+				const today = new Date().toLocaleDateString("en-US", options);
+				document.getElementById("current-date").textContent = today;
+			}
+
+			async function fetchLatestNews() {
+				const gridContainer = document.getElementById("news-grid-container");
+				const loadingIndicator = gridContainer.querySelector(".loading");
+				const loadingMoreIndicator = document.getElementById("loading-more");
+				const noMoreIndicator = document.getElementById("no-more-articles");
+
+				// More robust API endpoint handling
+				const baseApiUrl = "https://www.prothomalo.com/api/v1/collections/latest";
+				const limit = 300;
+				const requestURL = `https://corsproxy.io/?url=${encodeURIComponent(`${baseApiUrl}?limit=${limit}`)}`;
+
+				if (loadingIndicator) loadingIndicator.style.display = "block";
+				loadingMoreIndicator.style.display = "none";
+				noMoreIndicator.style.display = "none";
+				gridContainer.innerHTML = '<div class="loading">Loading latest news...</div>'; // Reset grid
+
+				try {
+					const response = await fetch(requestURL);
+					if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+					const data = await response.json();
+
+					// Filter more carefully for valid story objects and non-video/photo types
+					if (data && data.items && Array.isArray(data.items)) {
+						allArticles = data.items.filter(
+							(item) => item && item.story && typeof item.story === "object" && item.story["story-template"] !== "video" && item.story["story-template"] !== "photo" && item.story.headline // Ensure there's at least a headline
+						);
+
+						if (allArticles.length === 0) {
+							gridContainer.innerHTML = '<div class="error">No suitable articles found in the latest feed.</div>';
+							return;
+						}
+
+						extractCategories();
+						createCategoryFilters();
+						filterArticlesByCategory(currentCategory); // Apply default filter
+						displayedArticleCount = 0;
+						renderNewsCards(true); // Initial render (true = replace content)
+					} else {
+						gridContainer.innerHTML = '<div class="error">No articles found or invalid API response format.</div>';
+					}
+				} catch (error) {
+					console.error("Error fetching news:", error);
+					gridContainer.innerHTML = `<div class="error">Failed to load news: ${error.message}. Check console for details.</div>`;
+				} finally {
+					if (loadingIndicator) loadingIndicator.style.display = "none";
+				}
+			}
+
+			function extractCategories() {
+				// Filter out potentially empty/null categories before creating the set
+				const categorySet = new Set(
+					allArticles.map((a) => getCategoryFromUrl(a.story?.url)).filter((cat) => cat && cat.trim() !== "") // Ensure category is not null, undefined, or empty string
+				);
+				categories = Array.from(categorySet).sort();
+			}
+
+			function createCategoryFilters() {
+				const filterContainer = document.getElementById("filter-container");
+				filterContainer.innerHTML = ""; // Clear existing
+
+				const createButton = (text, categoryValue) => {
+					const button = document.createElement("button");
+					button.className = `filter-btn ${currentCategory === categoryValue ? "active" : ""}`;
+					button.textContent = text;
+					button.dataset.category = categoryValue; // Store category value
+					button.onclick = () => filterByCategory(categoryValue);
+					filterContainer.appendChild(button);
+				};
+
+				createButton("All", "all");
+				categories.forEach((cat) => createButton(cat, cat));
+			}
+
+			function setupClearReadButton() {
+				const clearBtn = document.getElementById("clear-read-btn");
+				if (clearBtn) {
+					clearBtn.addEventListener("click", clearReadData);
+				}
+			}
+
+			function clearReadData() {
+				if (confirm("Are you sure you want to clear the read status for all articles?")) {
+					localStorage.removeItem("readArticles");
+					readArticles = [];
+					document.querySelectorAll(".news-card.read").forEach((card) => {
+						card.classList.remove("read");
+					});
+					// Re-apply filter to refresh view potentially (though classes are removed directly)
+					// filterByCategory(currentCategory); // Optionally re-render if needed elsewhere
+					alert("Read status has been cleared.");
+				}
+			}
+
+			function filterByCategory(category) {
+				if (isLoading) return; // Don't filter while loading
+				currentCategory = category;
+				createCategoryFilters(); // Update button styles
+				filterArticlesByCategory(category); // Apply filter logic
+				displayedArticleCount = 0; // Reset display count
+				// Reset scroll position when filter changes
+				window.scrollTo({ top: 0, behavior: "smooth" });
+				renderNewsCards(true); // Re-render grid (true = replace)
+			}
+
+			function filterArticlesByCategory(category) {
+				if (category === "all") {
+					filteredArticles = [...allArticles];
+				} else {
+					filteredArticles = allArticles.filter((article) => getCategoryFromUrl(article.story?.url) === category);
+				}
+				currentModalIndex = -1; // Reset modal index on filter change
+			}
+
+			function createCardHtml(article, index) {
+				let story = article.story || {};
+				let originalLink = story.url || "#"; // Use # as fallback
+				let headline = story.headline || "Untitled Article";
+				let summary = story.summary || story.metadata?.excerpt || "No summary available."; // Fallback for summary
+				let imageUrl = story["hero-image-s3-key"] ? `https://media.prothomalo.com/${story["hero-image-s3-key"]}` : ProthomAloLogoURL;
+				let publishedAt = formatDate(story["published-at"]);
+				let category = getCategoryFromUrl(originalLink);
+				let isRead = readArticles.includes(originalLink);
+
+				return `
+			                  <div class="news-card ${isRead ? "read" : ""}" data-index="${index}" data-link="${originalLink}" onclick="openModalFromCard(${index})">
+			                      <img src="${imageUrl}" alt="${escapeHtml(headline)}" class="card-image" loading="lazy" onerror="this.src='${ProthomAloLogoURL}'; this.onerror=null;">
+			                      <div class="card-meta">
+			                         ${category ? `<span class="card-category">${escapeHtml(category)}</span>` : "<span></span>"} <!-- Placeholder span for alignment -->
+			                         <span>${publishedAt}</span>
+			                      </div>
+			                      <div class="card-content">
+			                          <h3 class="card-title">${escapeHtml(headline)}</h3>
+			                          <p class="card-description">${escapeHtml(summary)}</p>
+			                      </div>
+			                  </div>
+			              `;
+			}
+
+			function renderNewsCards(replace = false) {
+				const gridContainer = document.getElementById("news-grid-container");
+				const loadingMoreIndicator = document.getElementById("loading-more");
+				const noMoreIndicator = document.getElementById("no-more-articles");
+
+				const startIndex = replace ? 0 : displayedArticleCount;
+				const endIndex = startIndex + (replace ? initialLoadCount : loadMoreCount);
+				const articlesToRender = filteredArticles.slice(startIndex, endIndex);
+
+				if (replace) {
+					gridContainer.innerHTML = ""; // Clear previous content
+					displayedArticleCount = 0; // Reset count
+					if (filteredArticles.length === 0) {
+						gridContainer.innerHTML = `<div class="error">No articles found ${currentCategory !== "all" ? "in category: " + escapeHtml(currentCategory) : ""}</div>`;
+						noMoreIndicator.style.display = "none";
+						loadingMoreIndicator.style.display = "none";
+						return; // Stop if no articles for this filter
+					}
+				}
+
+				if (articlesToRender.length === 0 && !replace) {
+					// No more articles to load when scrolling
+					loadingMoreIndicator.style.display = "none";
+					noMoreIndicator.style.display = displayedArticleCount > 0 ? "block" : "none"; // Show only if some were already loaded
+					return;
+				}
+
+				const cardsHtml = articlesToRender.map((article, localIndex) => createCardHtml(article, startIndex + localIndex)).join("");
+
+				gridContainer.insertAdjacentHTML("beforeend", cardsHtml);
+				displayedArticleCount += articlesToRender.length;
+
+				// Update loading/no-more indicators
+				loadingMoreIndicator.style.display = "none";
+				if (displayedArticleCount >= filteredArticles.length) {
+					noMoreIndicator.style.display = "block";
+				} else {
+					noMoreIndicator.style.display = "none";
+				}
+			}
+
+			function checkScroll() {
+				// Check if already loading, or if all articles are displayed, or if modal is open
+				if (isLoading || displayedArticleCount >= filteredArticles.length || document.getElementById("article-modal").style.display === "block") {
+					return;
+				}
+
+				const scrollPosition = window.innerHeight + window.scrollY;
+				const pageHeight = document.documentElement.scrollHeight; // Use scrollHeight for full page height
+				const threshold = 300; // Pixels from bottom
+
+				if (scrollPosition >= pageHeight - threshold) {
+					loadMoreArticles();
+				}
+			}
+
+			function loadMoreArticles() {
+				if (isLoading || displayedArticleCount >= filteredArticles.length) return;
+
+				isLoading = true;
+				document.getElementById("loading-more").style.display = "block";
+				document.getElementById("no-more-articles").style.display = "none";
+
+				// Simulate slight delay for visual feedback
+				setTimeout(() => {
+					renderNewsCards(false); // Append more cards
+					isLoading = false;
+					// Loading indicator hidden within renderNewsCards
+				}, 300);
+			}
+
+			// --- Modal Logic ---
+
+			// NEW: Helper to get structured data for modal
+			function getArticleDataByIndex(index) {
+				if (index < 0 || index >= filteredArticles.length) return null;
+
+				const article = filteredArticles[index];
+				if (!article || !article.story) return null; // Add extra safety check
+
+				const story = article.story;
+				const item = article.item || {}; // Include item if needed
+
+				const originalLink = story.url || "#";
+				const category = getCategoryFromUrl(originalLink);
+
+				return {
+					index: index,
+					story: story, // Keep full story object if needed elsewhere
+					originalLink: originalLink,
+					headline: story.headline || item.headline || "Untitled Article",
+					summary: story.summary || story.metadata?.excerpt || "", // Get summary or excerpt
+					imageUrl: story["hero-image-s3-key"] ? `https://media.prothomalo.com/${story["hero-image-s3-key"]}` : ProthomAloLogoURL,
+					cardsJson: story.cards ? JSON.stringify(story.cards) : "[]", // Keep JSON for parsing
+					publishedAt: formatDate(story["published-at"]),
+					author: story["author-name"] || "Prothom Alo Desk", // Default author
+					category: category,
+					coverImgDescription: story["hero-image-caption"] || "",
+					coverImgAttribution: story["hero-image-attribution"] || "", // Get attribution
+				};
+			}
+
+			// NEW: Helper to build modal body HTML
+			function buildModalBodyHtml(articleData) {
+				if (!articleData) return "<p class='error'>Could not load article data.</p>";
+
+				let contentHtml = "";
+
+				//set category in header too
+				document.getElementById("news-category").textContent = escapeHtml(articleData.category);
+
+				try {
+					// Basic structure with meta, image, caption, summary
+					contentHtml = `
+			                     <div class="article-meta" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; color: #555; flex-wrap: wrap; gap: 5px;">
+			                         <span>By: ${escapeHtml(articleData.author)}</span>
+			                         <span>${articleData.publishedAt}</span>
+			                     </div>
+			                     <img src="${articleData.imageUrl}" alt="${escapeHtml(articleData.headline)}" class="modal-image" onerror="this.src='${ProthomAloLogoURL}'; this.onerror=null;">
+			                     ${
+															articleData.coverImgDescription || articleData.coverImgAttribution
+																? `<p class="modal-image-caption">${escapeHtml(articleData.coverImgDescription)} ${
+																		articleData.coverImgAttribution ? ` [${escapeHtml(articleData.coverImgAttribution)}]` : ""
+																  }</p>`
+																: ""
+														}
+			                     ${articleData.summary ? `<p class="modal-text" style="font-weight: bold; margin-bottom: 20px; font-size: 1.1em;">${escapeHtml(articleData.summary)}</p>` : ""}
+			                 `;
+
+					// Process cards for detailed content
+					if (articleData.cardsJson && articleData.cardsJson !== "[]") {
+						const cards = JSON.parse(articleData.cardsJson);
+						if (Array.isArray(cards)) {
+							cards.forEach((card) => {
+								if (card && card["story-elements"] && Array.isArray(card["story-elements"])) {
+									card["story-elements"].forEach((element) => {
+										if (!element || !element.type) return; // Skip invalid elements
+
+										switch (element.type) {
+											case "text":
+												if (element.subtype !== "also-read" && element.text) {
+													// Render text, allowing basic safe HTML (like <strong>, <em>, <a> - DANGER: Assess security implications)
+													// For safer approach, always escape or use a sanitizer library
+													// contentHtml += `<div class="modal-text">${escapeHtml(element.text)}</div>`; // Safest
+													contentHtml += `<div class="modal-text">${element.text}</div>`; // Allows HTML from source (use with caution)
+												}
+												break;
+											case "image":
+												if (element["image-s3-key"]) {
+													const imgUrl = `https://media.prothomalo.com/${element["image-s3-key"]}`;
+													const imgTitle = element.title || "";
+													const imgCaption = element.caption || "";
+													const imgAttr = element.attribution || "";
+													contentHtml += `
+                                                        <hr style="margin: 20px 0;">
+                                                        <img src="${imgUrl}" alt="${escapeHtml(imgTitle || "Article image")}" class="modal-image" loading="lazy" onerror="this.style.display='none';">
+                                                        ${imgCaption || imgAttr ? `<p class="modal-image-caption">${escapeHtml(imgCaption)} ${imgAttr ? ` [${escapeHtml(imgAttr)}]` : ""}</p>` : ""}
+                                                        `;
+												}
+												break;
+											case "quote":
+												if (element.text) {
+													contentHtml += `
+                                                        <blockquote>${escapeHtml(element.text)}</blockquote>
+                                                        ${element.attribution ? `<span>- ${escapeHtml(element.attribution)}</span>` : ""}
+                                                    `;
+												}
+												break;
+											// Add other element types as needed (e.g., list, embed)
+											default:
+												// console.log("Unhandled story element type:", element.type);
+												break;
+										}
+									});
+								}
+							});
+						}
+					} else if (!articleData.summary) {
+						// If no cards and no summary, show a message
+						contentHtml += "<p class='modal-text'><i>No detailed content available for this article.</i></p>";
+					}
+
+					// Footer with link and close button
+					contentHtml += `
+			                     <hr style="margin-top: 25px;">
+			                     <div class="bottom-container">
+								 <a href="${articleData.originalLink}" target="_blank" rel="noopener noreferrer"
+			                        style="display: inline-block; margin-top: 10px; margin-bottom: 5px; font-style: italic; color: #0056b3; text-decoration: underline; cursor: pointer;">
+			                        Read original on Prothom Alo
+			                     </a>
+								 <span id='CloseBtn' onclick="closeModal();">Close</span>
+								 </div>
+								 `;
+				} catch (e) {
+					console.error("Error building modal content:", e, "Data:", articleData);
+					contentHtml = `<p class='error'>Error loading article content. Details: ${escapeHtml(e.message)}</p>`;
+				}
+				return contentHtml;
+			}
+
+			function openModalFromCard(index) {
+				if (isAnimating) return; // Prevent opening while animating
+
+				const articleData = getArticleDataByIndex(index);
+				if (!articleData) {
+					console.warn("Could not get article data for index:", index);
+					alert("Error: Could not load article details.");
+					return;
+				}
+				currentModalIndex = index;
+				openModal(articleData); // Pass the structured data
+			}
+
+			function openModal(articleData) {
+				if (!articleData) return;
+
+				// Mark as read
+				if (!readArticles.includes(articleData.originalLink)) {
+					readArticles.push(articleData.originalLink);
+					localStorage.setItem("readArticles", JSON.stringify(readArticles));
+					// Update card class in background
+					const cardElement = document.querySelector(`.news-card[data-index="${articleData.index}"]`);
+					if (cardElement) {
+						cardElement.classList.add("read");
+					}
+				}
+
+				const modal = document.getElementById("article-modal");
+				const modalTitle = document.getElementById("modal-title");
+				const modalScrollContent = document.getElementById("modal-scroll-content");
+
+				// Stop any ongoing TTS
+				if (window.speechSynthesis && window.speechSynthesis.speaking) {
+					window.speechSynthesis.cancel();
+					setupTTS(); // Reset TTS button states
+				}
+
+				modalTitle.textContent = articleData.headline; // Already plain text
+				modalScrollContent.innerHTML = buildModalBodyHtml(articleData); // Build and set content
+
+				// *** Reset animation classes and set initial state for opening ***
+				modalScrollContent.className = "slide-in"; // Set directly to visible state
+
+				modal.style.display = "block";
+				document.body.style.overflow = "hidden"; // Prevent background scroll
+				modal.scrollTop = 0; // Scroll modal container to top
+
+				// --- Page Navigation Button Logic ---
+				pagePrevBtn = document.getElementById("page-prev-article");
+				pageNextBtn = document.getElementById("page-next-article");
+
+				if (pagePrevBtn && pageNextBtn) {
+					// Remove previous listeners before adding new ones to prevent duplicates
+					pagePrevBtn.removeEventListener("click", showPreviousArticle);
+					pageNextBtn.removeEventListener("click", showNextArticle);
+
+					// Add listeners
+					pagePrevBtn.addEventListener("click", showPreviousArticle);
+					pageNextBtn.addEventListener("click", showNextArticle);
+
+					// Set initial state and visibility
+					updateNavigationButtons(); // Use the central function
+					pagePrevBtn.style.display = "block";
+					pageNextBtn.style.display = "block";
+				}
+				// --- End Page Navigation Button Logic ---
+
+				setupSwipeGestures(); // Setup swipe for the newly opened modal
+				setupTTS(); // Setup TTS for the new content
+			}
+
+			// --- Function to update the global voice list ---
+			function updateVoiceList() {
+				if (!("speechSynthesis" in window)) return; // Guard clause
+				try {
+					availableVoices = window.speechSynthesis.getVoices();
+					if (availableVoices.length > 0) {
+						console.log("SpeechSynthesis voices updated. Count:", availableVoices.length);
+					} else {
+						// console.log("Voice list updated, but is empty. Waiting for 'onvoiceschanged'...");
+					}
+				} catch (e) {
+					console.error("Error getting voices:", e);
+					availableVoices = []; // Reset on error
+				}
+			}
+
+			// --- Initialize TTS Voice Loading ---
+			function initializeTTS() {
+				if (!("speechSynthesis" in window)) {
+					console.warn("Speech Synthesis not supported by this browser.");
+					// Optionally disable TTS buttons visually if not supported
+					const playBtn = document.getElementById("tts-play");
+					const stopBtn = document.getElementById("tts-stop");
+					if (playBtn) playBtn.disabled = true;
+					if (stopBtn) stopBtn.disabled = true; // Although hidden initially
+					return;
+				}
+
+				if (ttsInitializationAttempted) return; // Only run once
+				ttsInitializationAttempted = true;
+
+				// Listen for the voiceschanged event to update the list when ready
+				// Use try-catch as adding the event listener itself can fail in some environments
+				try {
+					window.speechSynthesis.onvoiceschanged = updateVoiceList;
+				} catch (e) {
+					console.error("Could not set onvoiceschanged listener:", e);
+				}
+
+				// Attempt to get voices immediately.
+				updateVoiceList(); // Call it once straight away
+
+				// Sometimes a short delay and another call helps on stubborn platforms
+				setTimeout(() => {
+					updateVoiceList();
+					// console.log("Retrying voice list fetch after short delay.");
+				}, 500); // 500ms delay, adjust if needed
+			}
+
+			// --- NEW: Function to update navigation button states ---
+			function updateNavigationButtons() {
+				if (pagePrevBtn && pageNextBtn) {
+					// Disable based on index boundaries OR if an animation is in progress
+					pagePrevBtn.disabled = isAnimating || currentModalIndex <= 0;
+					pageNextBtn.disabled = isAnimating || currentModalIndex >= filteredArticles.length - 1;
+				}
+			}
+
+			// --- REVISED Central function for modal navigation animation (Targeting .modal-content) ---
+			function navigateModal(direction) {
+				// direction: 1 for next, -1 for previous
+				if (isAnimating) return; // Don't allow navigation during animation
+
+				const newIndex = currentModalIndex + direction;
+				if (newIndex < 0 || newIndex >= filteredArticles.length) {
+					return; // Index out of bounds
+				}
+
+				const nextArticleData = getArticleDataByIndex(newIndex);
+				if (!nextArticleData) {
+					console.error("Failed to get article data for next index:", newIndex);
+					alert("Error: Could not load the next article's data.");
+					return; // Failed to get data
+				}
+
+				isAnimating = true;
+				updateNavigationButtons(); // Disable buttons during animation
+
+				// --- GET BOTH ELEMENTS ---
+				const modalContent = document.querySelector("#article-modal .modal-content"); // The element to slide
+				const modalScrollContent = document.getElementById("modal-scroll-content"); // The inner content area
+				const modal = document.getElementById("article-modal"); // The overlay/container
+
+				if (!modalContent || !modalScrollContent || !modal) {
+					console.error("Modal elements not found!");
+					isAnimating = false; // Reset flag
+					updateNavigationButtons();
+					return;
+				}
+
+				// Stop any ongoing TTS
+				if (window.speechSynthesis && window.speechSynthesis.speaking) {
+					window.speechSynthesis.cancel();
+					setupTTS(); // Reset TTS button states
+				}
+
+				// --- 1. Animate OUT the CURRENT modal ---
+				const slideOutTranslateX = direction === 1 ? "-100%" : "100%"; // Next -> Left, Prev -> Right
+				modalContent.style.transform = `translateX(${slideOutTranslateX})`; // Apply to modal-content
+				modalContent.style.opacity = "0"; // Apply to modal-content
+
+				// --- 2. AFTER slide-out completes, update content and slide IN ---
+				setTimeout(() => {
+					// Update core data
+					currentModalIndex = newIndex;
+
+					// Update modal header title (still inside modal-content, but updated before it appears)
+					const modalTitle = document.getElementById("modal-title");
+					if (modalTitle) modalTitle.textContent = nextArticleData.headline;
+
+					// --- UPDATE THE INNER CONTENT AREA ---
+					modalScrollContent.innerHTML = buildModalBodyHtml(nextArticleData);
+
+					// Mark new article as read
+					if (!readArticles.includes(nextArticleData.originalLink)) {
+						readArticles.push(nextArticleData.originalLink);
+						localStorage.setItem("readArticles", JSON.stringify(readArticles));
+						const cardElement = document.querySelector(`.news-card[data-index="${newIndex}"]`);
+						if (cardElement) cardElement.classList.add("read");
+					}
+
+					// --- Setup INCOMING modal's START position (Off-screen) ---
+					// Temporarily disable transitions on modal-content
+					modalContent.style.transition = "none";
+
+					const slideInStartX = direction === 1 ? "100%" : "-100%"; // Next comes from Right, Prev comes from Left
+					modalContent.style.transform = `translateX(${slideInStartX})`; // Apply to modal-content
+					modalContent.style.opacity = "0"; // Start invisible
+
+					// Force browser reflow on the element being animated
+					void modalContent.offsetWidth;
+
+					// --- 3. Re-enable transitions and Animate IN the NEW modal ---
+					modalContent.style.transition = ""; // Re-enable transitions defined in CSS
+
+					requestAnimationFrame(() => {
+						modalContent.style.transform = "translateX(0%)"; // Animate modal-content to center
+						modalContent.style.opacity = "1"; // Animate modal-content to visible
+					});
+
+					// Reset TTS setup for the new content (which is inside modalScrollContent)
+					setupTTS();
+
+					// Scroll modal overlay/container to top (important if modal was long)
+					if (modal) modal.scrollTop = 0;
+
+					// --- 4. Re-enable buttons AFTER the IN-animation completes ---
+					setTimeout(() => {
+						isAnimating = false; // Allow clicks/swipes again
+						updateNavigationButtons(); // Re-enable buttons based on the new index
+
+						// Optional cleanup of inline styles on modal-content
+						// modalContent.style.transform = '';
+						// modalContent.style.opacity = '';
+					}, animationDuration); // Wait for the slide-IN animation
+				}, animationDuration); // Wait for the slide-OUT animation to finish before swapping content
+			}
+
+			function showNextArticle() {
+				if (!pageNextBtn || pageNextBtn.disabled) return; // Extra check
+				navigateModal(1); // 1 for next
+			}
+
+			function showPreviousArticle() {
+				if (!pagePrevBtn || pagePrevBtn.disabled) return; // Extra check
+				navigateModal(-1); // -1 for previous
+			}
+
+			function setupSwipeGestures() {
+				const modalBody = document.getElementById("modal-body"); // Target the container that clips
+				if (!modalBody) return;
+
+				let touchstartX = 0;
+				let touchendX = 0;
+				let touchstartY = 0;
+				let touchendY = 0;
+
+				// --- Remove potential old listeners first ---
+				const removeListeners = () => {
+					modalBody.removeEventListener("touchstart", handleTouchStart);
+					modalBody.removeEventListener("touchend", handleTouchEnd);
+				};
+
+				const handleTouchStart = (event) => {
+					if (isAnimating) return; // Ignore swipes during animation
+					// Only track single touch
+					if (event.touches.length === 1) {
+						touchstartX = event.touches[0].screenX;
+						touchstartY = event.touches[0].screenY;
+					}
+				};
+
+				const handleTouchEnd = (event) => {
+					// Ignore if still touching or animating, or if touch start points are zero (no valid start)
+					if (isAnimating || event.touches.length > 0 || touchstartX === 0) return;
+
+					touchendX = event.changedTouches[0].screenX;
+					touchendY = event.changedTouches[0].screenY;
+					handleSwipe();
+				};
+
+				function handleSwipe() {
+					const swipeThreshold = 50; // Min horizontal distance
+					const verticalThreshold = 75; // Max vertical distance allowed to qualify as horizontal swipe
+
+					const dx = touchendX - touchstartX;
+					const dy = touchendY - touchstartY;
+
+					// Check if horizontal swipe is dominant and meets threshold
+					if (Math.abs(dx) > swipeThreshold && Math.abs(dy) < verticalThreshold) {
+						if (dx < 0) {
+							// Swipe Left -> Next Article
+							console.log("Swipe Left Detected");
+							showNextArticle();
+						} else {
+							// Swipe Right -> Previous Article
+							console.log("Swipe Right Detected");
+							showPreviousArticle();
+						}
+					} else {
+						// console.log(`Swipe ignored: dx=${dx}, dy=${dy}`);
+					}
+
+					// Reset coordinates after handling or ignoring swipe
+					touchstartX = 0;
+					touchstartY = 0;
+					touchendX = 0;
+					touchendY = 0;
+				}
+
+				// Remove old listeners before adding new ones
+				removeListeners();
+
+				// Add new listeners with passive option for performance
+				modalBody.addEventListener("touchstart", handleTouchStart, { passive: true });
+				modalBody.addEventListener("touchend", handleTouchEnd, { passive: true });
+			}
+
+			function closeModal() {
+				const modal = document.getElementById("article-modal");
+				if (modal) modal.style.display = "none";
+				document.body.style.overflow = "auto"; // Restore background scroll
+
+				// Stop TTS
+				if (window.speechSynthesis) {
+					window.speechSynthesis.cancel();
+				}
+
+				// Hide and cleanup page navigation buttons
+				if (pagePrevBtn) {
+					pagePrevBtn.style.display = "none";
+					pagePrevBtn.removeEventListener("click", showPreviousArticle); // Cleanup listener
+				}
+				if (pageNextBtn) {
+					pageNextBtn.style.display = "none";
+					pageNextBtn.removeEventListener("click", showNextArticle); // Cleanup listener
+				}
+				pagePrevBtn = null; // Clear references
+				pageNextBtn = null;
+
+				currentModalIndex = -1; // Reset index when modal is closed
+				isAnimating = false; // Reset animation flag just in case
+
+				// Optional: Clean up swipe listeners if modal is closed permanently?
+				// const modalBody = document.getElementById("modal-body");
+				// if (modalBody) { /* remove swipe listeners here */ }
+			}
+
+			function setupTTS() {
+				const ttsPlay = document.getElementById("tts-play");
+				const ttsStop = document.getElementById("tts-stop");
+				const ttsStatus = document.getElementById("tts-status");
+				const modalContent = document.getElementById("modal-scroll-content");
+
+				if (!ttsPlay || !ttsStop || !ttsStatus || !modalContent) {
+					// console.warn("TTS elements not found"); // Reduce console noise
+					return;
+				}
+
+				// Ensure TTS is initialized (safe to call multiple times due to flag)
+				initializeTTS();
+
+				// Reset state
+				ttsPlay.style.display = "inline-block";
+				ttsStop.style.display = "none";
+				ttsStatus.textContent = "";
+				ttsPlay.onclick = null; // Clear previous handlers
+				ttsStop.onclick = null; // Clear previous handlers
+				ttsPlay.disabled = !("speechSynthesis" in window); // Disable if TTS not supported at all
+
+				// --- Modified checkBanglaTTS - Checks the global list ---
+				const checkBanglaTTS = () => {
+					// Force an update check right before using
+					if ("speechSynthesis" in window && typeof window.speechSynthesis.getVoices === "function") {
+						updateVoiceList();
+					}
+
+					if (!availableVoices || availableVoices.length === 0) {
+						// console.log("Checking for Bangla voice. Available voices: 0");
+						ttsStatus.textContent = "Voices loading...";
+						// Attempt to trigger load again if list is empty
+						if ("speechSynthesis" in window && typeof window.speechSynthesis.getVoices === "function") {
+							// window.speechSynthesis.getVoices(); // Might help trigger 'onvoiceschanged'
+						}
+						return null;
+					}
+
+					// console.log(`Checking for Bangla voice. Available voices: ${availableVoices.length}`);
+					const banglaVoices = availableVoices.filter((voice) => voice.lang.startsWith("bn")); // Check 'bn' or 'bn-BD' etc.
+
+					if (banglaVoices.length > 0) {
+						// console.log("Bangla TTS voice found:", banglaVoices[0].name);
+						return banglaVoices; // Return the array of found voices
+					} else {
+						console.warn("TTS Warning: No Bangla voice found in the current list.");
+						ttsStatus.textContent = "Bangla voice not found.";
+						return null; // Indicate failure
+					}
+				};
+
+				// --- Modified playHandler - Uses the modified check ---
+				const playHandler = () => {
+					if (isAnimating) return; // Should not happen if buttons are disabled, but safety first
+
+					if (!window.speechSynthesis) {
+						ttsStatus.textContent = "TTS not supported";
+						return;
+					}
+
+					// If already speaking, maybe act as pause/resume? (Current: Stops)
+					if (window.speechSynthesis.speaking) {
+						window.speechSynthesis.cancel(); // Stop current speech first
+						// We reset buttons in the onend handler, so no need here
+						return; // Or potentially proceed to speak the new text?
+					}
+					if (window.speechSynthesis.pending) {
+						console.log("TTS: Speech request pending, cancelling previous.");
+						window.speechSynthesis.cancel(); // Cancel pending requests
+					}
+
+					// *** Key Change: Check for voices *using the updated function* ***
+					const banglaVoices = checkBanglaTTS();
+					if (!banglaVoices || banglaVoices.length === 0) {
+						// checkBanglaTTS now updates the status message itself
+						console.log("Play cancelled: No suitable Bangla voice found or voices not loaded yet.");
+						return; // Stop if no Bangla TTS is available
+					}
+
+					// Extract text to speak (robustly handle missing elements)
+					const title = document.getElementById("modal-title")?.textContent || "";
+					let textToSpeak = title ? title.trim() + ". " : ""; // Start with title if available
+					const bodyElements = modalContent.querySelectorAll(".modal-text, .modal-image-caption, blockquote");
+					if (bodyElements) {
+						bodyElements.forEach((el) => {
+							const text = el.textContent?.trim();
+							if (text) {
+								// Add sentence-ending punctuation if missing, for better flow
+								textToSpeak += text + (/[.!?]$/.test(text) ? " " : ". ");
+							}
+						});
+					}
+
+					if (!textToSpeak.trim() || textToSpeak.length < (title?.length || 0) + 3) {
+						// Check if meaningful text exists
+						ttsStatus.textContent = "No text content found";
+						console.log("TTS: No text content found to speak.");
+						return;
+					}
+
+					// console.log("TTS: Preparing utterance...");
+					ttsUtterance = new SpeechSynthesisUtterance(textToSpeak);
+					ttsUtterance.lang = "bn-BD"; // Explicitly set Bangla (Bangladesh)
+					ttsUtterance.voice = banglaVoices[0]; // Use the first available Bangla voice
+					ttsUtterance.rate = 1.0; // Adjust rate as needed
+					ttsUtterance.pitch = 1.0; // Adjust pitch as needed
+
+					ttsUtterance.onstart = () => {
+						// console.log("TTS: Playback started.");
+						ttsPlay.style.display = "none";
+						ttsStop.style.display = "inline-block";
+						ttsStatus.textContent = "Reading...";
+					};
+
+					ttsUtterance.onend = () => {
+						// console.log("TTS: Playback finished or cancelled.");
+						ttsPlay.style.display = "inline-block";
+						ttsStop.style.display = "none";
+						ttsStatus.textContent = ""; // Clear status on natural end
+						ttsUtterance = null;
+					};
+
+					ttsUtterance.onerror = (event) => {
+						console.error("TTS Error:", event.error, event);
+						let errorMsg = "TTS Error";
+						if (event.error) {
+							errorMsg += `: ${event.error}`;
+							if (event.error === "network") errorMsg += ". Check connection.";
+							else if (event.error === "synthesis-failed") errorMsg += ". Could not synthesize.";
+							else if (event.error === "audio-busy") errorMsg += ". Try again shortly.";
+							else if (event.error === "language-unavailable" || event.error === "voice-unavailable") errorMsg = "Bangla voice error.";
+						}
+						ttsStatus.textContent = errorMsg;
+						ttsPlay.style.display = "inline-block"; // Ensure play is visible after error
+						ttsStop.style.display = "none";
+						ttsUtterance = null;
+					};
+
+					// Ensure the voice object is valid before speaking
+					if (!ttsUtterance.voice) {
+						console.error("TTS Error: Selected voice object is invalid/null before speaking.");
+						ttsStatus.textContent = "Voice setup error.";
+						// Attempt to find voice again maybe?
+						const refreshedVoices = checkBanglaTTS();
+						if (refreshedVoices && refreshedVoices.length > 0) {
+							ttsUtterance.voice = refreshedVoices[0];
+							console.log("TTS: Re-assigned voice successfully.");
+						} else {
+							return; // Still no voice, cannot proceed
+						}
+					}
+
+					// console.log(`TTS: Attempting to speak with voice: ${ttsUtterance.voice.name} (${ttsUtterance.voice.lang})`);
+					// Use a small timeout before speak, sometimes helps Android webview / race conditions
+					setTimeout(() => {
+						try {
+							window.speechSynthesis.speak(ttsUtterance);
+						} catch (e) {
+							console.error("Error calling speechSynthesis.speak:", e);
+							ttsStatus.textContent = "Error starting TTS.";
+							ttsPlay.style.display = "inline-block"; // Reset buttons on immediate error
+							ttsStop.style.display = "none";
+							ttsUtterance = null;
+						}
+					}, 50); // Small delay
+				};
+
+				const stopHandler = () => {
+					if (window.speechSynthesis) {
+						// console.log("TTS: Stop requested by user.");
+						window.speechSynthesis.cancel(); // This should trigger onend event
+					}
+					// Force reset button states immediately for responsiveness
+					ttsPlay.style.display = "inline-block";
+					ttsStop.style.display = "none";
+					ttsStatus.textContent = "Stopped";
+					ttsUtterance = null;
+				};
+
+				// Attach handlers
+				ttsPlay.onclick = playHandler;
+				ttsStop.onclick = stopHandler;
+			}
+
+			// --- Global Event Listeners ---
+			window.onclick = function (event) {
+				// Close modal on overlay click
+				const modal = document.getElementById("article-modal");
+				if (event.target === modal) {
+					closeModal();
+				}
+			};
+
+			document.addEventListener("keydown", function (event) {
+				// Keyboard navigation only when modal is open
+				const modal = document.getElementById("article-modal");
+				if (modal && modal.style.display === "block") {
+					if (event.key === "ArrowLeft" && !isAnimating) {
+						event.preventDefault(); // Prevent browser back navigation/scroll
+						showPreviousArticle();
+					} else if (event.key === "ArrowRight" && !isAnimating) {
+						event.preventDefault(); // Prevent default scroll/action
+						showNextArticle();
+					} else if (event.key === "Escape") {
+						event.preventDefault(); // Prevent potential default escape actions
+						closeModal();
+					}
+				}
+			});
+
+			function copyNewsText() {
+				const button = document.getElementById("copyNewsText");
+				if (!button || button.disabled) return; // Check if button exists/is enabled
+
+				// Extract text more selectively and cleanly
+				const title = document.getElementById("modal-title")?.textContent?.trim() || "";
+				const modalContent = document.getElementById("modal-scroll-content");
+				let contentToCopy = title ? title + "\n\n" : ""; // Start with title and space
+
+				if (modalContent) {
+					// Query for relevant text elements inside the content area
+					const elements = modalContent.querySelectorAll(".modal-text, .modal-image-caption, blockquote");
+					elements.forEach((el) => {
+						const text = el.textContent?.trim();
+						if (text) {
+							contentToCopy += text + "\n\n"; // Add double newline for paragraph separation
+						}
+					});
+				}
+
+				// Add source link at the end
+				const articleData = getArticleDataByIndex(currentModalIndex);
+				if (articleData && articleData.originalLink && articleData.originalLink !== "#") {
+					contentToCopy += `Source: ${articleData.originalLink}`;
+				}
+
+				// Use Clipboard API
+				if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+					navigator.clipboard
+						.writeText(contentToCopy.trim()) // Trim trailing newlines
+						.then(() => {
+							const originalText = button.textContent;
+							button.textContent = "Copied!";
+							button.disabled = true;
+							setTimeout(() => {
+								button.textContent = originalText;
+								button.disabled = false;
+							}, 2000); // Revert after 2 seconds
+						})
+						.catch((err) => {
+							console.error("Failed to copy text using Clipboard API: ", err);
+							alert("Failed to copy text. Your browser might not support this feature or permissions denied.");
+						});
+				} else {
+					// Fallback for older browsers (less reliable)
+					try {
+						const textArea = document.createElement("textarea");
+						textArea.value = contentToCopy.trim();
+						textArea.style.position = "fixed"; // Prevent scrolling
+						textArea.style.opacity = "0";
+						document.body.appendChild(textArea);
+						textArea.focus();
+						textArea.select();
+						document.execCommand("copy");
+						document.body.removeChild(textArea);
+
+						const originalText = button.textContent;
+						button.textContent = "Copied!";
+						button.disabled = true;
+						setTimeout(() => {
+							button.textContent = originalText;
+							button.disabled = false;
+						}, 2000);
+					} catch (err) {
+						console.error("Fallback Copy Error:", err);
+						alert("Failed to copy text using fallback method.");
+					}
+				}
+			}
+
+			window.addEventListener("scroll", checkScroll, { passive: true }); // Use passive listener for scroll
+
+			// --- Initialization ---
+			document.addEventListener("DOMContentLoaded", () => {
+				displayCurrentDate();
+				fetchLatestNews();
+				setupClearReadButton(); // Setup the clear button listener
+				initializeTTS(); // Initialize TTS loading early
+			});
+		</script>
+	</body>
+</html>

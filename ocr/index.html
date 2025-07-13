@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+		<title>ATM Slip OCR</title>
+		<!-- Tesseract and XLSX -->
+		<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+		<!-- Cropper.js -->
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet" />
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+		<style>
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+				padding: 1rem;
+				margin: 0;
+				background: #f0f2f5;
+				color: #333;
+				line-height: 1.6;
+			}
+			.container {
+				max-width: 700px;
+				margin: 0 auto;
+				background: #fff;
+				padding: 1.5rem;
+				border-radius: 8px;
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+			}
+			h2 {
+				text-align: center;
+				color: #007bff;
+				margin-top: 0;
+				margin-bottom: 1.5rem;
+			}
+
+			.input-options {
+				display: flex;
+				flex-direction: column;
+				gap: 0.75rem;
+				margin-bottom: 1.5rem;
+			}
+
+			button,
+			input[type="button"] {
+				/* General button style */
+				display: block;
+				width: 100%;
+				margin: 0.5rem auto;
+				padding: 0.85rem 1.5rem;
+				font-size: 1rem;
+				font-weight: 500;
+				background: #007bff;
+				color: white;
+				border: none;
+				border-radius: 6px;
+				cursor: pointer;
+				transition: background-color 0.2s ease;
+			}
+			button#extractBtn {
+				background-color: #28a745;
+			} /* Green for extract */
+			button#extractBtn:hover:not(:disabled) {
+				background-color: #1e7e34;
+			}
+
+			button:hover:not(:disabled),
+			input[type="button"]:hover:not(:disabled) {
+				background: #0056b3;
+			}
+			button:disabled,
+			input[type="button"]:disabled {
+				background: #cccccc;
+				cursor: not-allowed;
+			}
+
+			/* input[type="file"] is hidden, label acts as button */
+			label.file-input-button {
+				display: block;
+				padding: 0.85rem 1.5rem;
+				background-color: #6c757d;
+				color: white;
+				border-radius: 6px;
+				text-align: center;
+				cursor: pointer;
+				font-size: 1rem;
+				font-weight: 500;
+				width: 100%;
+				box-sizing: border-box;
+				transition: background-color 0.2s ease;
+			}
+			label.file-input-button:hover {
+				background-color: #5a6268;
+			}
+
+			img#preview,
+			img#cropPreviewImage {
+				max-width: 100%;
+				max-height: 300px;
+				object-fit: contain;
+				display: block;
+				margin: 1rem auto;
+				border: 1px solid #eee;
+				border-radius: 8px;
+				background-color: #f9f9f9;
+			}
+			/* Cropper Modal Styles */
+			.crop-modal {
+				display: none;
+				position: fixed;
+				z-index: 1000;
+				left: 0;
+				top: 0;
+				width: 100%;
+				height: 100%;
+				overflow: auto;
+				background-color: rgba(0, 0, 0, 0.6);
+				align-items: center;
+				justify-content: center;
+				flex-direction: column; /* For centering content */
+			}
+			.crop-modal-content {
+				background-color: #fefefe;
+				margin: auto;
+				padding: 20px;
+				border: 1px solid #888;
+				width: 90%;
+				max-width: 600px;
+				border-radius: 8px;
+				box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+				display: flex;
+				flex-direction: column;
+			}
+			#cropImageContainer {
+				width: 100%;
+				height: 60vh; /* Max height for the cropper area */
+				max-height: 400px; /* Absolute max height */
+				margin-bottom: 15px;
+				overflow: hidden; /* Ensure image doesn't overflow container */
+			}
+			#cropImageContainer img {
+				/* Cropper.js will manage the image display inside this */
+				display: block;
+				max-width: 100%; /* Cropper will handle this */
+			}
+			.crop-actions {
+				margin-top: 15px;
+				text-align: center;
+				display: flex;
+				justify-content: space-around;
+			}
+			.crop-actions button {
+				width: auto;
+				min-width: 100px;
+				margin: 0 5px;
+				display: inline-block;
+			}
+
+			.result-table {
+				max-width: 100%;
+				margin: 1.5rem auto;
+				overflow-x: auto;
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+			}
+			th,
+			td {
+				padding: 0.6rem 0.5rem;
+				text-align: center;
+				border: 1px solid #e0e0e0;
+			}
+			th {
+				background-color: #f8f9fa;
+				font-weight: 500;
+			}
+			input[type="text"] {
+				width: 100%;
+				padding: 0.4rem;
+				text-align: center;
+				border: 1px solid #ccc;
+				border-radius: 4px;
+				box-sizing: border-box;
+				font-size: 0.9rem;
+				transition: background-color 0.2s ease;
+			}
+			input[type="text"].col-invalid {
+				background-color: #ffcccc !important;
+				border-color: #ff9999 !important;
+			}
+			input[type="text"].field-problem {
+				background-color: #fff2f2 !important;
+			}
+			/* Add or modify in the <style> block */
+			textarea#rawText {
+				width: 100%;
+				box-sizing: border-box; /* Ensures padding is included in width */
+				font-family: monospace; /* Good for code-like text */
+				white-space: pre-wrap; /* Respects whitespace and wraps */
+				word-wrap: break-word; /* Breaks long words */
+				padding: 1rem;
+				background: #f5f5f5;
+				border: 1px solid #ccc;
+				border-radius: 6px;
+				margin-top: 0.5rem; /* Adjust spacing */
+				margin-bottom: 0.5rem; /* Add space before retry button */
+				font-size: 0.85em;
+				max-height: 200px; /* Limit height */
+				overflow-y: auto; /* Add scrollbar if needed */
+				resize: vertical; /* Allow user to resize vertically */
+			}
+
+			label#rawTextLabel {
+				display: block; /* Make label take full width */
+				margin-top: 1.5rem; /* Space above label */
+				font-weight: 500;
+				color: #555;
+			}
+
+			/* Optional: Style for the retry button if needed */
+			button#retryParseBtn {
+				/* You can add specific styles or rely on general button style */
+				background-color: #ffc107; /* Example: Amber color */
+				color: #333;
+			}
+			button#retryParseBtn:hover:not(:disabled) {
+				background-color: #e0a800;
+			}
+			#progressIndicator {
+				text-align: center;
+				margin: 1.5rem 0;
+				padding: 1rem;
+				background-color: #f9f9f9;
+				border-radius: 6px;
+			}
+			.spinner {
+				border: 4px solid rgba(0, 0, 0, 0.1);
+				width: 30px;
+				height: 30px;
+				border-radius: 50%;
+				border-left-color: #007bff;
+				animation: spin 1s ease infinite;
+				margin: 0 auto 0.5rem auto;
+			}
+			@keyframes spin {
+				0% {
+					transform: rotate(0deg);
+				}
+				100% {
+					transform: rotate(360deg);
+				}
+			}
+			#progressMessage {
+				margin-top: 0.5rem;
+				font-size: 0.95rem;
+				color: #333;
+			}
+			#progressBarContainer {
+				width: 90%;
+				margin: 0.75rem auto 0 auto;
+				background-color: #e0e0e0;
+				border-radius: 4px;
+				overflow: hidden;
+				height: 10px;
+			}
+			#progressBar {
+				width: 0%;
+				height: 100%;
+				background-color: #007bff;
+				transition: width 0.2s ease-out;
+			}
+			#summaryTableContainer {
+				margin-top: 1.5rem;
+				overflow-x: auto;
+			}
+			#summaryTableContainer table {
+				/* width: auto; */
+				margin: 0 auto;
+				border: 1px solid #007bff;
+			}
+			#summaryTableContainer th,
+			#summaryTableContainer td {
+				padding: 0.7rem 0.6rem;
+				border: 1px solid #bce0fd;
+			}
+			#summaryTableContainer th {
+				background-color: #e7f5ff;
+				color: #004085;
+				font-weight: 600;
+			}
+			#summaryTableContainer td.total-amount-value {
+				font-weight: bold;
+				font-size: 1.2em;
+				color: #155724;
+				background-color: #d4edda;
+			}
+			#summaryTableContainer td {
+				background-color: #f8f9fa;
+			}
+			.hidden {
+				display: none !important;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h2>ATM Slip Data Extractor</h2>
+
+			<div class="input-options">
+				<label for="fileInput" class="file-input-button">Select File</label>
+				<input type="file" id="fileInput" accept="image/*" class="hidden" />
+
+				<button type="button" id="takePhotoBtn">Take Photo</button>
+				<input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" />
+			</div>
+
+			<div id="cropModal" class="crop-modal">
+				<div class="crop-modal-content">
+					<h3>Crop Image</h3>
+					<div id="cropImageContainer">
+						<img id="cropPreviewImage" src="#" alt="Crop Preview" />
+					</div>
+					<div class="crop-actions">
+						<button type="button" id="cropButton">Crop & Use</button>
+						<button type="button" id="cancelCropButton">Cancel</button>
+					</div>
+				</div>
+			</div>
+
+			<img id="preview" class="hidden" alt="Final Image preview" />
+			<button id="extractBtn" class="hidden">Extract Text</button>
+			<!-- Initially hidden -->
+
+			<!-- MODIFIED: Replace pre with textarea -->
+			<label for="rawText" id="rawTextLabel">Editable Raw OCR Text:</label>
+			<textarea
+				id="rawText"
+				rows="10"
+				style="
+					width: 100%;
+					box-sizing: border-box;
+					font-family: monospace;
+					white-space: pre-wrap;
+					word-wrap: break-word;
+					padding: 1rem;
+					background: #f5f5f5;
+					border: 1px solid #ccc;
+					border-radius: 6px;
+					margin-top: 0.5rem;
+					font-size: 0.85em;
+					max-height: 200px;
+					overflow-y: auto;
+				"
+			></textarea>
+
+			<!-- ADDED: Retry Parse Button -->
+			<button id="retryParseBtn">Retry Parsing from Text</button>
+
+			<div id="progressIndicator" class="hidden">
+				<div class="spinner"></div>
+				<p id="progressMessage">Initializing...</p>
+				<!-- This was missing from constants init before -->
+				<div id="progressBarContainer"><div id="progressBar"></div></div>
+			</div>
+
+			<div class="result-table" id="result"></div>
+			<div id="summaryTableContainer" class="hidden"></div>
+
+			<button onclick="downloadExcel()" id="downloadBtn" class="hidden">Download Excel</button>
+		</div>
+
+		<script>
+			const DEBUG_MODE = false;
+
+			document.addEventListener("DOMContentLoaded", function () {
+				const fileInput = document.getElementById("fileInput");
+				const takePhotoBtn = document.getElementById("takePhotoBtn");
+				const cameraInput = document.getElementById("cameraInput");
+				const preview = document.getElementById("preview");
+				const extractBtn = document.getElementById("extractBtn");
+				const resultDiv = document.getElementById("result");
+				const rawTextPre = document.getElementById("rawText");
+				const downloadBtn = document.getElementById("downloadBtn");
+				const progressIndicator = document.getElementById("progressIndicator");
+				const progressMessage = document.getElementById("progressMessage");
+				const progressBar = document.getElementById("progressBar");
+				const summaryTableContainer = document.getElementById("summaryTableContainer");
+				const cropModal = document.getElementById("cropModal");
+				const cropPreviewImage = document.getElementById("cropPreviewImage");
+				const cropButton = document.getElementById("cropButton");
+				const cancelCropButton = document.getElementById("cancelCropButton");
+				const rawTextArea = document.getElementById("rawText");
+				const rawTextLabel = document.getElementById("rawTextLabel"); // Get the label
+				const retryParseBtn = document.getElementById("retryParseBtn"); // Get the retry button
+				const rowOrder = ["CASSETTE", "REJECTED", "REMAINING", "DISPENSED", "TOTAL"]; // Define the vertical order
+
+				let cropperInstance = null;
+				let currentImageForOcr = null;
+				let extractedData = {};
+				let typeValidity = [true, true, true, true];
+				const PREPROCESS_MAX_WIDTH = 1500;
+				const CONTRAST_ADJUSTMENT = 50;
+
+				fileInput.addEventListener("change", handleFileSelect);
+				takePhotoBtn.addEventListener("click", () => cameraInput.click());
+				cameraInput.addEventListener("change", handleFileSelect);
+
+				extractBtn.addEventListener("click", extractTextFromPreviewedImage); // Switched to addEventListener
+				// Make downloadExcel globally accessible or use addEventListener
+				window.downloadExcel = downloadExcel;
+
+				// --- ADD Event Listener for the new Retry Button ---
+				retryParseBtn.addEventListener("click", handleRetryParse);
+
+				// --- NEW: Function to handle parsing and display updates ---
+				function processTextAndDisplay(textToProcess) {
+					try {
+						if (DEBUG_MODE) console.log("Processing text:\n", textToProcess);
+						extractedData = parseData(textToProcess); // Parse the text
+						performGlobalValidation(extractedData); // Validate the parsed data
+						showEditableTable(extractedData); // Display the editable table
+						resultDiv.classList.remove("hidden");
+						updateSummaryAndTotal(); // Update the summary table
+						downloadBtn.classList.remove("hidden"); // Ensure download button is visible
+
+						// Make textarea and retry button visible if they aren't already
+						rawTextLabel.classList.remove("hidden");
+						rawTextArea.classList.remove("hidden");
+						retryParseBtn.classList.remove("hidden");
+					} catch (error) {
+						console.error("Error during text processing:", error);
+						if (DEBUG_MODE) alert(`Error processing text: ${error.message || "Unknown error"}`);
+						resultDiv.innerHTML = `<p style="color: red; text-align: center;">Error processing text: ${error.message || "Unknown error"}. Please check the raw text.</p>`;
+						resultDiv.classList.remove("hidden");
+						// Hide summary and download button on error
+						summaryTableContainer.classList.add("hidden");
+						downloadBtn.classList.add("hidden");
+					}
+				}
+
+				// --- NEW: Handler for the Retry Parse Button ---
+				function handleRetryParse() {
+					const currentRawText = rawTextArea.value; // Get text from textarea
+					if (currentRawText.trim() === "") {
+						alert("Raw text is empty. Cannot retry parsing.");
+						return;
+					}
+					if (DEBUG_MODE) alert("Retrying parse with edited text.");
+					retryParseBtn.disabled = true; // Briefly disable button
+					processTextAndDisplay(currentRawText); // Process the text
+					retryParseBtn.disabled = false; // Re-enable button
+				}
+
+				function handleVerticalNav(event) {
+					// // --- DEBUGGING ALERT ---
+					// // Construct the message to display
+					// const debugMessage =
+					// 	`Key Event Detected:\n` + // \n creates a new line in alerts
+					// 	`--------------------\n` +
+					// 	`Key: ${event.key}\n` +
+					// 	`Code: ${event.code}\n` +
+					// 	`KeyCode: ${event.keyCode}\n` + // Often useful, though sometimes deprecated
+					// 	`Target Element: ${event.target.tagName}\n` +
+					// 	`Target Data: label=${event.target.dataset.label}, index=${event.target.dataset.index}`;
+
+					// // Show the alert box
+					// alert(debugMessage);
+					// // --- END DEBUGGING ALERT ---
+
+					// Only act on inputs with the vertical-nav class
+					if (!event.target.classList.contains("vertical-nav")) {
+						return;
+					}
+
+					const isEnterOrDown = event.key === "Enter" || event.key === "ArrowDown";
+					const isUp = event.key === "ArrowUp";
+
+					if (isEnterOrDown || isUp) {
+						event.preventDefault(); // Prevent default (form submit, page scroll)
+
+						const currentInput = event.target;
+						const currentLabel = currentInput.dataset.label;
+						const currentColumnIndex = parseInt(currentInput.dataset.index); // Use index to find column inputs
+						const currentRowIndex = rowOrder.indexOf(currentLabel);
+
+						let nextRowIndex = -1;
+						if (isEnterOrDown) {
+							nextRowIndex = currentRowIndex + 1;
+						} else if (isUp) {
+							nextRowIndex = currentRowIndex - 1;
+						}
+
+						// Check if the next index is valid within the rowOrder array
+						if (nextRowIndex >= 0 && nextRowIndex < rowOrder.length) {
+							const nextLabel = rowOrder[nextRowIndex];
+							// Find the corresponding input in the same column (using data-index) but next/prev row (using data-label)
+							const nextInput = resultDiv.querySelector(`input.vertical-nav[data-label="${nextLabel}"][data-index="${currentColumnIndex}"]`);
+
+							if (nextInput) {
+								nextInput.focus();
+								nextInput.select(); // Select text for easy replacement
+							}
+						}
+						// Optional: Add behavior for reaching the top/bottom (e.g., loop, stop)
+					}
+				}
+
+				// --- ADD NEW Keydown Listener for Vertical Navigation ---
+				resultDiv.addEventListener("keydown", handleVerticalNav);
+
+				function handleFileSelect(event) {
+					const file = event.target.files[0];
+					if (file) {
+						clearResultsAndSummary();
+						preview.classList.add("hidden");
+						extractBtn.classList.add("hidden"); // Hide extract button until crop is done
+
+						const reader = new FileReader();
+						reader.onload = (e) => {
+							cropPreviewImage.src = e.target.result;
+							cropModal.style.display = "flex";
+							if (cropperInstance) {
+								cropperInstance.destroy();
+							}
+							cropperInstance = new Cropper(cropPreviewImage, {
+								aspectRatio: NaN,
+								viewMode: 1,
+								background: false,
+								autoCropArea: 0.85,
+								responsive: true,
+								checkCrossOrigin: false, // Important if src is data URL
+							});
+							if (DEBUG_MODE) alert("Cropper initialized. Adjust crop and click 'Crop & Use'.");
+						};
+						reader.readAsDataURL(file);
+					}
+					event.target.value = null;
+				}
+
+				cancelCropButton.addEventListener("click", () => {
+					cropModal.style.display = "none";
+					if (cropperInstance) cropperInstance.destroy();
+					cropperInstance = null;
+					currentImageForOcr = null;
+					preview.classList.add("hidden");
+					extractBtn.classList.add("hidden"); // Keep extract button hidden
+				});
+
+				cropButton.addEventListener("click", () => {
+					if (cropperInstance) {
+						const croppedCanvas = cropperInstance.getCroppedCanvas({
+							// fillColor: '#fff' // Optional: set background for transparent parts if any
+						});
+						cropperInstance.destroy();
+						cropperInstance = null;
+						cropModal.style.display = "none";
+
+						currentImageForOcr = croppedCanvas.toDataURL("image/png");
+						preview.src = currentImageForOcr;
+						preview.classList.remove("hidden");
+						extractBtn.classList.remove("hidden"); // Show extract button
+						if (DEBUG_MODE) alert("Image cropped. Click 'Extract Text'.");
+					}
+				});
+
+				function clearResultsAndSummary() {
+					resultDiv.innerHTML = "";
+					resultDiv.classList.add("hidden");
+					summaryTableContainer.innerHTML = "";
+					summaryTableContainer.classList.add("hidden");
+					rawTextArea.value = ""; // Clear the textarea
+					rawTextArea.classList.add("hidden"); // Hide the textarea
+					rawTextLabel.classList.add("hidden"); // Hide the label
+					retryParseBtn.classList.add("hidden"); // Hide the retry button
+					downloadBtn.classList.add("hidden");
+					progressIndicator.classList.add("hidden");
+					extractedData = {};
+					typeValidity = [true, true, true, true];
+					currentImageForOcr = null;
+					extractBtn.classList.add("hidden"); // Hide extract button
+					preview.classList.add("hidden"); // Hide preview as well
+				}
+
+				async function preprocessImage(imageDataUrl, maxWidth) {
+					// Removed contrastValue
+					return new Promise((resolve, reject) => {
+						const img = new Image();
+						img.onload = () => {
+							let width = img.width;
+							let height = img.height;
+							let resizedInfo = `Original: ${width}x${height}`;
+
+							if (width > maxWidth) {
+								// const oldWidth = width; // Not strictly needed anymore but good for context
+								// const oldHeight = height; // Not strictly needed anymore
+								height = Math.round((height * maxWidth) / width);
+								width = maxWidth;
+								resizedInfo += ` -> Resized: ${width}x${height}`;
+							}
+
+							const canvas = document.createElement("canvas");
+							canvas.width = width;
+							canvas.height = height;
+							const ctx = canvas.getContext("2d");
+
+							// This line draws the original image (img) scaled to the new canvas dimensions.
+							// The colors are preserved.
+							ctx.drawImage(img, 0, 0, width, height);
+
+							// REMOVE THE GRAYSCALE AND CONTRAST ADJUSTMENT CODE:
+							// const imgData = ctx.getImageData(0, 0, width, height);
+							// const data = imgData.data;
+							// const factor = (259 * (contrastValue + 255)) / (255 * (259 - contrastValue));
+							//
+							// for (let i = 0; i < data.length; i += 4) {
+							//     let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+							//     gray = factor * (gray - 128) + 128;
+							//     gray = Math.max(0, Math.min(255, gray));
+							//     data[i] = data[i + 1] = data[i + 2] = gray;
+							// }
+							// ctx.putImageData(imgData, 0, 0);
+
+							// Assuming DEBUG_MODE is defined elsewhere
+							const DEBUG_MODE = true; // or false, or get it from global scope
+							if (DEBUG_MODE) alert(`Preprocessing done. ${resizedInfo}. Image resized.`); // Updated message
+
+							resolve(canvas.toDataURL("image/png"));
+						};
+						img.onerror = (err) => reject(new Error("Image load failed for preprocessing."));
+						img.src = imageDataUrl;
+					});
+				}
+
+				async function OLD_preprocessImage(imageDataUrl, maxWidth, contrastValue) {
+					return new Promise((resolve, reject) => {
+						const img = new Image();
+						img.onload = () => {
+							let width = img.width;
+							let height = img.height;
+							let resizedInfo = `Original: ${width}x${height}`;
+
+							if (width > maxWidth) {
+								const oldWidth = width;
+								const oldHeight = height;
+								height = Math.round((height * maxWidth) / width);
+								width = maxWidth;
+								resizedInfo += ` -> Resized: ${width}x${height}`;
+							}
+
+							const canvas = document.createElement("canvas");
+							canvas.width = width;
+							canvas.height = height;
+							const ctx = canvas.getContext("2d");
+							ctx.drawImage(img, 0, 0, width, height);
+							const imgData = ctx.getImageData(0, 0, width, height);
+							const data = imgData.data;
+							const factor = (259 * (contrastValue + 255)) / (255 * (259 - contrastValue));
+
+							for (let i = 0; i < data.length; i += 4) {
+								let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+								gray = factor * (gray - 128) + 128;
+								gray = Math.max(0, Math.min(255, gray));
+								data[i] = data[i + 1] = data[i + 2] = gray;
+							}
+							ctx.putImageData(imgData, 0, 0);
+							if (DEBUG_MODE) alert(`Preprocessing done. ${resizedInfo}. Applied grayscale & contrast.`);
+							resolve(canvas.toDataURL("image/png"));
+						};
+						img.onerror = (err) => reject(new Error("Image load failed for preprocessing."));
+						img.src = imageDataUrl;
+					});
+				}
+
+				async function extractTextFromPreviewedImage() {
+					if (!currentImageForOcr) {
+						alert("Please select/take and crop an image first.");
+						return;
+					}
+
+					extractBtn.disabled = true;
+					// Clear previous results BUT keep the preview image
+					resultDiv.innerHTML = "";
+					resultDiv.classList.add("hidden");
+					summaryTableContainer.innerHTML = "";
+					summaryTableContainer.classList.add("hidden");
+					rawTextArea.value = "";
+					rawTextArea.classList.add("hidden");
+					rawTextLabel.classList.add("hidden");
+					retryParseBtn.classList.add("hidden");
+					downloadBtn.classList.add("hidden");
+
+					progressIndicator.classList.remove("hidden");
+					progressMessage.textContent = "Preprocessing final image...";
+					progressBar.style.width = "0%";
+
+					try {
+						const preprocessedImageSrc = await OLD_preprocessImage(currentImageForOcr, PREPROCESS_MAX_WIDTH, CONTRAST_ADJUSTMENT);
+						// preview.src = preprocessedImageSrc; // Don't necessarily update preview again, keep cropped one? Or update? Your choice. Let's keep the preprocessed one.
+						preview.src = preprocessedImageSrc;
+						if (DEBUG_MODE) alert("Final preprocessed image shown. OCR starting.");
+
+						progressMessage.textContent = "Initializing Tesseract...";
+						const result = await Tesseract.recognize(preprocessedImageSrc, "eng", {
+							logger: (m) => {
+								// ... (logger logic remains the same) ...
+								if (m.status) {
+									let s = m.status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+									progressMessage.textContent = `${s}...`;
+								}
+								if (m.progress !== undefined && m.status === "recognizing text") {
+									progressBar.style.width = m.progress * 100 + "%";
+								} else if (m.progress !== undefined) {
+									let s = m.status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+									progressMessage.textContent = `${s} (${Math.round(m.progress * 100)}%)...`;
+								}
+							},
+						});
+
+						const ocrText = result.data.text; // Get the raw text from OCR
+						if (DEBUG_MODE) alert("OCR Raw Output:\n" + ocrText.substring(0, 200) + (ocrText.length > 200 ? "..." : ""));
+
+						// Populate the textarea with the OCR text
+						rawTextArea.value = ocrText;
+						rawTextLabel.classList.remove("hidden"); // Show label
+						rawTextArea.classList.remove("hidden"); // Show textarea
+						rawTextArea.readOnly = false; // Make it editable
+
+						// Process the initial OCR text using the common function
+						processTextAndDisplay(ocrText);
+
+						// Show the retry button now that we have text
+						retryParseBtn.classList.remove("hidden");
+					} catch (error) {
+						console.error("Error:", error);
+						if (DEBUG_MODE) alert(`Error during OCR: ${error.message || "Unknown error"}`);
+						resultDiv.innerHTML = `<p style="color: red; text-align: center;">Error during OCR: ${error.message || "Unknown error"}.</p>`;
+						resultDiv.classList.remove("hidden");
+					} finally {
+						// Re-enable extract button ONLY if there's still an image selected.
+						extractBtn.disabled = !currentImageForOcr;
+						progressIndicator.classList.add("hidden");
+					}
+				}
+
+				function checkTypeColumnValidity(typeIndex, currentData) {
+					const cVal = currentData.CASSETTE[typeIndex],
+						rVal = currentData.REJECTED[typeIndex],
+						remVal = currentData.REMAINING[typeIndex],
+						dVal = currentData.DISPENSED[typeIndex],
+						totVal = currentData.TOTAL[typeIndex];
+					if (remVal === "" || totVal === "") return false;
+					const c = parseInt(cVal || 0),
+						r = parseInt(rVal || 0),
+						rem = parseInt(remVal),
+						d = parseInt(dVal || 0),
+						tot = parseInt(totVal);
+					if (isNaN(rem) || isNaN(tot) || isNaN(c) || isNaN(r) || isNaN(d)) return false;
+					return c + r === rem && rem + d === tot;
+				}
+				function performGlobalValidation(currentData) {
+					for (let i = 0; i < 4; i++) typeValidity[i] = checkTypeColumnValidity(i, currentData);
+				}
+
+				function updateSummaryAndTotal() {
+					const allValid = typeValidity.every((isValid) => isValid);
+					summaryTableContainer.innerHTML = ""; // Clear previous summary
+
+					// Check if ALL required data types (Rejected, Cassette, Remaining) exist and data is valid
+					if (allValid && Object.keys(extractedData).length > 0 && extractedData.REJECTED && extractedData.CASSETTE && extractedData.REMAINING) {
+						// --- 1. Calculate Rejected Notes Count per Denomination ---
+						const rej1 = parseInt(extractedData.REJECTED[0] || 0);
+						const rej2 = parseInt(extractedData.REJECTED[1] || 0);
+						const rej3 = parseInt(extractedData.REJECTED[2] || 0);
+						const rej4 = parseInt(extractedData.REJECTED[3] || 0);
+
+						const rejected1kNotes = rej1 + rej2; // Type 1 + Type 2 = 1000s
+						const rejected500Notes = rej3; // Type 3 = 500s
+						const rejected100Notes = rej4; // Type 4 = 100s
+
+						// --- 2. Calculate Total Cash Value in Cassettes ---
+						const c1 = parseInt(extractedData.CASSETTE[0] || 0);
+						const c2 = parseInt(extractedData.CASSETTE[1] || 0);
+						const c3 = parseInt(extractedData.CASSETTE[2] || 0);
+						const c4 = parseInt(extractedData.CASSETTE[3] || 0);
+
+						const cassette1kNotes = c1 + c2;
+						const cassette500Notes = c3;
+						const cassette100Notes = c4;
+
+						const valueCassette1k = cassette1kNotes * 1000;
+						const valueCassette500 = cassette500Notes * 500;
+						const valueCassette100 = cassette100Notes * 100;
+
+						const totalCassetteValue = valueCassette1k + valueCassette500 + valueCassette100;
+
+						// --- 3. Calculate Total Remaining Cash Value ("Total Before Cash") ---
+						const rem1 = parseInt(extractedData.REMAINING[0] || 0);
+						const rem2 = parseInt(extractedData.REMAINING[1] || 0);
+						const rem3 = parseInt(extractedData.REMAINING[2] || 0);
+						const rem4 = parseInt(extractedData.REMAINING[3] || 0);
+
+						const remaining1kNotes = rem1 + rem2;
+						const remaining500Notes = rem3;
+						const remaining100Notes = rem4;
+
+						const valueRemaining1k = remaining1kNotes * 1000;
+						const valueRemaining500 = remaining500Notes * 500;
+						const valueRemaining100 = remaining100Notes * 100;
+
+						const totalRemainingValue = valueRemaining1k + valueRemaining500 + valueRemaining100;
+
+						// --- Create Summary Table HTML ---
+						const summaryTableElement = document.createElement("table");
+						// Using simple 2-column layout now
+						summaryTableElement.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Denomination</th>
+                    <th>Rejected Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1000s</td>
+                    <td>${rejected1kNotes.toLocaleString("en-IN")}</td>
+                </tr>
+                <tr>
+                    <td>500s</td>
+                    <td>${rejected500Notes.toLocaleString("en-IN")}</td>
+                </tr>
+                <tr>
+                    <td>100s</td>
+                    <td>${rejected100Notes.toLocaleString("en-IN")}</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="border:0; height: 10px; background-color: #fff;"></td> <!-- Spacer -->
+                </tr>
+                <tr>
+                    <th style="text-align:right;font-size: 1em;">Total Cash in Cassettes:</th>
+                    <td style="text-align:right;background-color: #d4edda;font-size: 1.2em;">${totalCassetteValue.toLocaleString("en-IN")}</td>
+                </tr>
+                <tr>
+                    <th style="text-align:right;">Total Before Cash:</th>
+                    <td style="font-weight:bold; text-align:right;background-color: #94e2f7;font-size: 1.2em;">${totalRemainingValue.toLocaleString("en-IN")}</td>
+                </tr>
+            </tbody>`;
+
+						summaryTableContainer.appendChild(summaryTableElement);
+						summaryTableContainer.classList.remove("hidden");
+					} else {
+						// Hide summary if data is invalid or incomplete
+						summaryTableContainer.classList.add("hidden");
+					}
+				}
+
+				const parseData = (text) => {
+					const lines = text
+						.split("\n")
+						.map((l) => l.trim())
+						.filter(Boolean);
+					const data = { CASSETTE: ["", "", "", ""], REJECTED: ["", "", "", ""], REMAINING: ["", "", "", ""], DISPENSED: ["", "", "", ""], TOTAL: ["", "", "", ""] };
+					const labels = Object.keys(data);
+					const lc = {};
+					labels.forEach((l) => (lc[l] = 0));
+					lines.forEach((line) => {
+						labels.forEach((label) => {
+							const rgx = new RegExp(`[+=]?${label}\\s+(\\d{3,5})(?:\\s+(\\d{3,5}))?`, "i");
+							const m = line.match(rgx);
+							if (m) {
+								const v1 = m[1] || "",
+									v2 = m[2] || "";
+								if (lc[label] === 0) {
+									data[label][0] = v1;
+									data[label][1] = v2;
+								} else if (lc[label] === 1) {
+									data[label][2] = v1;
+									data[label][3] = v2;
+								}
+								if (lc[label] < 2) lc[label]++;
+							}
+						});
+					});
+					return data;
+				};
+
+				function generateInputHtml(v, l, di, icov) {
+					let ic = "";
+					const ie = v === "";
+					// Determine column name based on index
+					let colName = "";
+					if (di === 0) colName = "type1";
+					else if (di === 1) colName = "type2";
+					else if (di === 2) colName = "type3";
+					else if (di === 3) colName = "type4";
+
+					if (!icov) {
+						ic = "col-invalid"; // If the whole column sum is invalid
+					} else if (ie && ["REMAINING", "TOTAL"].includes(l)) {
+						// Mark required fields if empty, even if column sum is valid (optional styling)
+						ic = "field-problem";
+					}
+					// Add data-column attribute
+					return `<input type="text" inputmode="numeric" pattern="[0-9]*" class="vertical-nav ${ic}" value="${v}" data-label="${l}" data-index="${di}" data-column="${colName}">`;
+				}
+
+				function createRow(l, v1, v2, di1, di2) {
+					const r = document.createElement("tr");
+					r.innerHTML = `<td>${l}</td><td>${generateInputHtml(v1, l, di1, typeValidity[di1])}</td><td>${generateInputHtml(v2, l, di2, typeValidity[di2])}</td>`;
+					return r;
+				}
+				function showEditableTable(cd) {
+					const t = document.createElement("table");
+					t.innerHTML = "";
+					let h1 = t.insertRow();
+					h1.innerHTML = "<th>Label</th><th>Type 1 (1000s)</th><th>Type 2 (1000s)</th>";
+					Object.keys(cd).forEach((l) => t.appendChild(createRow(l, cd[l][0], cd[l][1], 0, 1)));
+					let sp = t.insertRow();
+					sp.innerHTML = '<th colspan="3" style="padding:0.3rem;background-color:#fff;border:0;"></th>';
+					let h2 = t.insertRow();
+					h2.innerHTML = "<th>Label</th><th>Type 3 (500s)</th><th>Type 4 (100s)</th>";
+					Object.keys(cd).forEach((l) => t.appendChild(createRow(l, cd[l][2], cd[l][3], 2, 3)));
+					resultDiv.innerHTML = "";
+					resultDiv.appendChild(t);
+				}
+
+				resultDiv.addEventListener("input", function (e) {
+					// Make sure it's one of our text inputs
+					if (e.target.tagName === "INPUT" && e.target.type === "text" && e.target.classList.contains("vertical-nav")) {
+						const inputElement = e.target;
+						const label = inputElement.dataset.label;
+						const dataIndex = parseInt(inputElement.dataset.index);
+						const newValue = inputElement.value;
+
+						// 1. Update the data model
+						if (extractedData[label]) {
+							extractedData[label][dataIndex] = newValue;
+
+							// 2. Perform validation (this updates the global `typeValidity` array)
+							performGlobalValidation(extractedData); // Checks all columns
+
+							// 3. Update the CSS classes for the *entire affected column* based on validation
+							updateColumnStyles(dataIndex);
+
+							// 4. Update the summary table
+							updateSummaryAndTotal();
+
+							// --- REMOVED ---
+							// showEditableTable(extractedData); // DO NOT RE-RENDER THE WHOLE TABLE HERE!
+							// --- REMOVED FOCUS RESTORATION CODE ---
+						}
+					}
+				});
+
+				// --- ADD NEW Helper function to update styles after input/validation ---
+				function updateColumnStyles(columnIndex) {
+					const columnIsValid = typeValidity[columnIndex];
+					const inputsInColumn = resultDiv.querySelectorAll(`input.vertical-nav[data-index="${columnIndex}"]`);
+
+					inputsInColumn.forEach((input) => {
+						const label = input.dataset.label;
+						const isEmpty = input.value === "";
+
+						// Remove previous validation classes
+						input.classList.remove("col-invalid", "field-problem");
+
+						// Apply new classes
+						if (!columnIsValid) {
+							input.classList.add("col-invalid");
+						} else if (isEmpty && ["REMAINING", "TOTAL"].includes(label)) {
+							// Optional: Highlight required fields if column is valid but field is empty
+							input.classList.add("field-problem");
+						}
+					});
+				}
+
+				// resultDiv.addEventListener("input", function (e) {
+				// 	if (e.target.tagName === "INPUT" && e.target.type === "text") {
+				// 		const l = e.target.dataset.label,
+				// 			di = parseInt(e.target.dataset.index),
+				// 			nv = e.target.value;
+				// 		if (extractedData[l]) {
+				// 			extractedData[l][di] = nv;
+				// 			performGlobalValidation(extractedData);
+				// 			showEditableTable(extractedData);
+				// 			updateSummaryAndTotal();
+				// 			const nt = resultDiv.querySelector("table");
+				// 			if (nt) {
+				// 				const ins = Array.from(nt.querySelectorAll(`input[data-label="${l}"][data-index="${di}"]`));
+				// 				if (ins.length > 0) {
+				// 					const cp = e.target.selectionStart;
+				// 					ins[0].focus();
+				// 					ins[0].setSelectionRange(cp, cp);
+				// 				}
+				// 			}
+				// 		}
+				// 	}
+				// });
+
+				function downloadExcel() {
+					const te = resultDiv.querySelector("table");
+					if (!te) return;
+					const dr = Array.from(te.querySelectorAll("tr")).filter((r) => r.cells.length > 1 && r.cells[1].querySelector("input"));
+					const hs = ["Label", "Type 1 (1000s)", "Type 2 (1000s)", "Type 3 (500s)", "Type 4 (100s)"];
+					const fd = [];
+					const nl = Object.keys(extractedData).length;
+					if (dr.length !== nl * 2) {
+						alert("Excel export error: table mismatch.");
+						return;
+					}
+					for (let i = 0; i < nl; i++) {
+						const r12 = dr[i],
+							r34 = dr[i + nl],
+							l = r12.cells[0].textContent;
+						fd.push([l, r12.cells[1].querySelector("input").value, r12.cells[2].querySelector("input").value, r34.cells[1].querySelector("input").value, r34.cells[2].querySelector("input").value]);
+					}
+					if (typeValidity.every((v) => v) && extractedData.REMAINING) {
+						fd.push([], ["Denomination Summary"], ["Denomination", "Remaining Notes", "Value "]);
+						const r1 = parseInt(extractedData.REMAINING[0] || 0),
+							r2 = parseInt(extractedData.REMAINING[1] || 0),
+							r3 = parseInt(extractedData.REMAINING[2] || 0),
+							r4 = parseInt(extractedData.REMAINING[3] || 0);
+						const t1k = r1 + r2,
+							t5h = r3,
+							t1h = r4;
+						const v1k = t1k * 1000,
+							v5h = t5h * 500,
+							v1h = t1h * 100,
+							tc = v1k + v5h + v1h;
+						fd.push(["1000s", t1k.toLocaleString("en-IN"), v1k.toLocaleString("en-IN")]);
+						fd.push(["500s", t5h.toLocaleString("en-IN"), v5h.toLocaleString("en-IN")]);
+						fd.push(["100s", t1h.toLocaleString("en-IN"), v1h.toLocaleString("en-IN")]);
+						fd.push(["", "Total Cash Remaining:", tc.toLocaleString("en-IN")]);
+					}
+					const ws = XLSX.utils.aoa_to_sheet([hs, ...fd]);
+					const wb = XLSX.utils.book_new();
+					XLSX.utils.book_append_sheet(wb, ws, "ATM Slip OCR");
+					XLSX.writeFile(wb, "atm_slip_ocr_output.xlsx");
+				}
+			}); // End of DOMContentLoaded
+		</script>
+	</body>
+</html>
